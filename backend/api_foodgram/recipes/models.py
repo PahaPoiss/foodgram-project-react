@@ -1,10 +1,11 @@
 from django.db import models
-from users.models import User
 
+from users.models import User
 
 # Основные модели
 
 # Тэг
+
 
 class Tag(models.Model):
     name = models.CharField(unique=True, max_length=50,
@@ -79,7 +80,7 @@ class Favorite(models.Model):
                                related_name="favourited")
 
 
-# Избранное
+# Корзина
 
 class ShoppingCart(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE,

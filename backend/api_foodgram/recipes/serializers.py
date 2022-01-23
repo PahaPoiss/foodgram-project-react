@@ -1,16 +1,17 @@
 import base64
-import six
-import uuid
 import imghdr
-from rest_framework import serializers
+import uuid
+
+import six
 from django.core.files.base import ContentFile
 from django.shortcuts import get_object_or_404
-from .models import (Favorite, Recipe, ShoppingCart, Tag, Ingredient,
-                     RecipeIngredients)
+from rest_framework import serializers
 
 from users.serializers import (CustomUserSerializer,
                                RecipeEasyRetrieveSerializer)
-# from drf_extra_fields.fields import Base64ImageField
+
+from .models import (Favorite, Ingredient, Recipe, RecipeIngredients,
+                     ShoppingCart, Tag)
 
 
 class Base64ImageField(serializers.ImageField):
@@ -61,8 +62,9 @@ class RecipeIngredientsRetrieveSerializer(serializers.ModelSerializer):
     amount = serializers.IntegerField()
     id = serializers.ReadOnlyField(source='ingredient.id')
     name = serializers.ReadOnlyField(source='ingredient.name')
-    measurement_unit = serializers.ReadOnlyField(source=(
-                                                'ingredient.measurement_unit'))
+    measurement_unit = serializers.ReadOnlyField(
+        source=(
+            'ingredient.measurement_unit'))
 
     class Meta:
         model = RecipeIngredients

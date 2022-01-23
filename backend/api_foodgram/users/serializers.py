@@ -1,8 +1,10 @@
+from django.utils.datastructures import MultiValueDictKeyError
 from djoser.serializers import UserCreateSerializer, UserSerializer
 from rest_framework import serializers
-from .models import Follow, User
+
 from recipes.models import Recipe
-from django.utils.datastructures import MultiValueDictKeyError
+
+from .models import Follow, User
 
 
 class CustomUserCreateSerializer(UserCreateSerializer):
@@ -14,24 +16,19 @@ class CustomUserCreateSerializer(UserCreateSerializer):
     def validate(self, data):
         if not data['first_name'] or len(data['first_name']) == 0:
             raise serializers.ValidationError(
-                    'Обязательное поле.'
-                )
+                'Обязательное поле.')
         if not data['last_name'] or len(data['last_name']) == 0:
             raise serializers.ValidationError(
-                    'Обязательное поле.'
-                )
+                'Обязательное поле.')
         if not data['username'] or len(data['username']) == 0:
             raise serializers.ValidationError(
-                    'Обязательное поле.'
-                )
+                'Обязательное поле.')
         if not data['email'] or len(data['email']) == 0:
             raise serializers.ValidationError(
-                    'Обязательное поле.'
-                )
+                'Обязательное поле.')
         if not data['password'] or len(data['password']) == 0:
             raise serializers.ValidationError(
-                    'Обязательное поле.'
-                )
+                'Обязательное поле.')
         return data
 
 

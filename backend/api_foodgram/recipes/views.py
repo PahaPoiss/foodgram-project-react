@@ -1,39 +1,20 @@
-from django.contrib.auth.tokens import default_token_generator
-from django.core.mail import send_mail
-from django.db.models import Avg, F
-from django.shortcuts import get_object_or_404
-from rest_framework import filters, mixins, status, viewsets
-from rest_framework.permissions import (IsAdminUser, AllowAny,
-                                        IsAuthenticated,
-                                        IsAuthenticatedOrReadOnly)
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.decorators import action, api_view
-from rest_framework.response import Response
-from rest_framework import generics
-from rest_framework.pagination import LimitOffsetPagination
-from django.http import HttpResponse
-from wsgiref.util import FileWrapper
-from django.http import FileResponse
-from rest_framework import viewsets, renderers
-from rest_framework.decorators import action
-from django.http import HttpResponse
-from django.template.loader import get_template
-from xhtml2pdf import pisa
-from django.views.generic import ListView
 from django.db.models import Sum
-from .filters import RecipeFilter, IngredientFilter
-from io import BytesIO
-import os
-import api_foodgram.settings as settings
+from django.http import HttpResponse
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
-from .models import (Recipe, RecipeIngredients, ShoppingCart, Tag, Ingredient, Favorite)
-from .permissions import (IsAdmin, IsAdminOrReadOnly,
-                          OwnerOrReadOnly)
+from api_foodgram.pagination import CustomPagination
 
-from .serializers import (IngredientSerializer, ShoppingCartCreateSerializer, TagSerializer,
-                          RecipeRetrieveSerializer,
-                          RecipeCreateSerializer,
-                          FavoriteCreateSerializer)
+from .filters import IngredientFilter, RecipeFilter
+from .models import (Favorite, Ingredient, Recipe, RecipeIngredients,
+                     ShoppingCart, Tag)
+from .permissions import IsAdminOrReadOnly, OwnerOrReadOnly
+from .serializers import (FavoriteCreateSerializer, IngredientSerializer,
+                          RecipeCreateSerializer, RecipeRetrieveSerializer,
+                          ShoppingCartCreateSerializer, TagSerializer)
 
 
 class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
@@ -42,7 +23,7 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     filter_backends = [IngredientFilter]
     search_fields = ('^name',)
     pagination_class = None
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAdminOrReadOnly,)
 
 
 class TagViewSet(viewsets.ModelViewSet):
@@ -53,13 +34,10 @@ class TagViewSet(viewsets.ModelViewSet):
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
-    queryset = Recipe.objects.all()
-    permission_classes = (AllowAny,)
-    pagination_class = LimitOffsetPagination
+    permission_classes = (OwnerOrReadOnly,)
+    pagination_class = CustomPagination
     filter_backends = [filters.SearchFilter, DjangoFilterBackend]
     filterset_class = RecipeFilter
-    # search_fields = ('^name',)
-    # filterset_fields = ('name',)
 
     def get_serializer_class(self):
         if self.action == 'list' or self.action == 'retrieve':
@@ -80,15 +58,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(cart__user=user)
         return queryset
 
-    # def fetch_pdf_resources(self, url, rel):
-    #     if url.find(settings.MEDIA_URL) != -1:
-    #         path = os.path.join(settings.MEDIA_ROOT, url.replace(settings.MEDIA_URL, ''))
-    #     elif url.find(settings.STATIC_URL) != -1:
-    #         path = os.path.join(settings.STATIC_ROOT, url.replace(settings.STATIC_URL, ''))
-    #     else:
-    #         path = None
-    #     return path
-
     # Скачивание списка покупок
     @action(detail=False, methods=['get'],
             permission_classes=[IsAuthenticated],
@@ -99,8 +68,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         recipes = RecipeIngredients.objects.filter(recipe__cart__user=user)
         ingredients = recipes.values(
             'ingredient__name',
-            'ingredient__measurement_unit',
-            ).annotate(total=Sum(
+            'ingredient__measurement_unit',).annotate(total=Sum(
                 'amount'))
         shopping_cart = []
         for ingredient in ingredients:
@@ -110,10 +78,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
             shopping_cart.append(
                 f"{name}: {total} {measurement_unit}\n"
             )
-        response = HttpResponse(shopping_cart, 'Content-Type: text/plain')
-        response['Content-Disposition'] = (
-            'attachment;' 'filename="shopping_cart.txt"'
-        )
+        response = HttpResponse(shopping_cart, content_type='text/plain')
+        response['Content-Disposition'] = 'attachment; filename="list.txt"'
         return response
 
 
@@ -123,7 +89,7 @@ class FavoriteCreateViewSet(viewsets.ModelViewSet):
     queryset = Favorite.objects.all()
     permission_class = (IsAuthenticated,)
 
-    def delete(self, request,  *args, **kwargs):
+    def delete(self, request, *args, **kwargs):
         recipe_id = self.kwargs['recipe_id']
         recipe = Recipe.objects.get(id=recipe_id)
         user = request.user
@@ -138,7 +104,7 @@ class ShoppingCartCreateViewSet(viewsets.ModelViewSet):
     queryset = ShoppingCart.objects.all()
     permission_class = (IsAuthenticated,)
 
-    def delete(self, request,  *args, **kwargs):
+    def delete(self, request, *args, **kwargs):
         recipe_id = self.kwargs['recipe_id']
         recipe = Recipe.objects.get(id=recipe_id)
         user = request.user
