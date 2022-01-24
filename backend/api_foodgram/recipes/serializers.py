@@ -1,45 +1,12 @@
-import base64
-import imghdr
-import uuid
-
-import six
-from django.core.files.base import ContentFile
-from django.shortcuts import get_object_or_404
 from rest_framework import serializers
-
+from rest_framework.validators import UniqueTogetherValidator
+from users.models import User
 from users.serializers import (CustomUserSerializer,
                                RecipeEasyRetrieveSerializer)
 
-from .models import (Favorite, Ingredient, Recipe, RecipeIngredients,
+from .fields import Base64ImageField
+from .models import (Favorite, Ingredient, Recipe, RecipeIngredient,
                      ShoppingCart, Tag)
-
-
-class Base64ImageField(serializers.ImageField):
-
-    def to_internal_value(self, data):
-
-        if isinstance(data, six.string_types):
-            if 'data:' in data and ';base64,' in data:
-                header, data = data.split(';base64,')
-
-            try:
-                decoded_file = base64.b64decode(data)
-            except TypeError:
-                self.fail('invalid_image')
-
-            file_name = str(uuid.uuid4())[:12]
-            file_extension = self.get_file_extension(file_name, decoded_file)
-            complete_file_name = "%s.%s" % (file_name, file_extension, )
-            data = ContentFile(decoded_file, name=complete_file_name)
-
-        return super(Base64ImageField, self).to_internal_value(data)
-
-    def get_file_extension(self, file_name, decoded_file):
-
-        extension = imghdr.what(file_name, decoded_file)
-        extension = "jpg" if extension == "jpeg" else extension
-
-        return extension
 
 
 class IngredientSerializer(serializers.ModelSerializer):
@@ -56,8 +23,6 @@ class TagSerializer(serializers.ModelSerializer):
         model = Tag
 
 
-# Рецепт-Ингредиент для чтения
-
 class RecipeIngredientsRetrieveSerializer(serializers.ModelSerializer):
     amount = serializers.IntegerField()
     id = serializers.ReadOnlyField(source='ingredient.id')
@@ -67,25 +32,21 @@ class RecipeIngredientsRetrieveSerializer(serializers.ModelSerializer):
             'ingredient.measurement_unit'))
 
     class Meta:
-        model = RecipeIngredients
+        model = RecipeIngredient
         fields = ('id', 'name', 'measurement_unit', 'amount')
 
-
-# Рецепт-Ингредиент для создания
 
 class RecipeCreateIngridientSerializer(serializers.ModelSerializer):
     id = serializers.PrimaryKeyRelatedField(queryset=Ingredient.objects.all())
     amount = serializers.IntegerField()
 
     class Meta:
-        model = RecipeIngredients
+        model = RecipeIngredient
         fields = (
-            "id",
-            "amount"
+            'id',
+            'amount'
         )
 
-
-# Для показа рецепта
 
 class RecipeRetrieveSerializer(serializers.ModelSerializer):
     tags = TagSerializer(many=True, read_only=True)
@@ -104,7 +65,7 @@ class RecipeRetrieveSerializer(serializers.ModelSerializer):
         )
 
     def get_ingredients(self, obj):
-        queryset = RecipeIngredients.objects.filter(recipe=obj)
+        queryset = RecipeIngredient.objects.filter(recipe=obj)
         return RecipeIngredientsRetrieveSerializer(queryset, many=True).data
 
     def get_is_favorited(self, obj):
@@ -125,8 +86,6 @@ class RecipeRetrieveSerializer(serializers.ModelSerializer):
         return obj.image.url
 
 
-# Для создания рецепта
-
 class RecipeCreateSerializer(serializers.ModelSerializer):
     tags = serializers.PrimaryKeyRelatedField(queryset=Tag.objects.all(),
                                               many=True)
@@ -141,7 +100,7 @@ class RecipeCreateSerializer(serializers.ModelSerializer):
 
     def create_ingredients(self, ingredients, recipe):
         for ingredient in ingredients:
-            RecipeIngredients.objects.create(
+            RecipeIngredient.objects.create(
                 recipe=recipe, ingredient=ingredient['id'],
                 amount=ingredient['amount'])
 
@@ -160,7 +119,7 @@ class RecipeCreateSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         instance.tags.clear()
-        RecipeIngredients.objects.filter(recipe=instance).delete()
+        RecipeIngredient.objects.filter(recipe=instance).delete()
         self.create_tags(validated_data.pop('tags'), instance)
         self.create_ingredients(validated_data.pop('ingredients'), instance)
         return super().update(instance, validated_data)
@@ -203,69 +162,67 @@ class RecipeCreateSerializer(serializers.ModelSerializer):
         return data
 
 
-# Для избранного
-
 class FavoriteCreateSerializer(serializers.ModelSerializer):
-    user = CustomUserSerializer(read_only=True)
+    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    recipe = serializers.PrimaryKeyRelatedField(queryset=Recipe.objects.all())
 
     class Meta:
         model = Favorite
-        fields = ('user',)
-
-    def create(self, validated_data):
-        recipe_id = self.context['view'].kwargs['recipe_id']
-        recipe = get_object_or_404(Recipe, id=recipe_id)
-        user = self.context.get('request').user
-        Favorite.objects.get_or_create(user=user, recipe=recipe)
-
-        return recipe
-
-    def validate(self, data):
-        recipe_id = self.context['view'].kwargs['recipe_id']
-        recipe = get_object_or_404(Recipe, id=recipe_id)
-        user = self.context.get('request').user
-        if Favorite.objects.filter(user=user, recipe=recipe).exists():
-            raise serializers.ValidationError(
-                'Нельзя добавить рецепт в избранное дважды'
+        fields = ('user', 'recipe')
+        validators = [
+            UniqueTogetherValidator(
+                queryset=Favorite.objects.all(),
+                fields=('user', 'recipe'),
+                message='Нельзя добавить рецепт в избранное дважды'
             )
-        return data
+        ]
+
+    # def validate(self, data):
+    #     print(data['recipe'])
+    #     recipe = get_object_or_404(Recipe, id=data.recipe_id)
+    #     user = self.context.get('request').user
+    #     if Favorite.objects.filter(user=user, recipe=recipe).exists():
+    #         raise serializers.ValidationError(
+    #             'Нельзя добавить рецепт в избранное дважды'
+    #         )
+    #     return data
 
     def to_representation(self, instance):
-        request = self.context.get('request')
-        context = {'request': request}
-        return RecipeEasyRetrieveSerializer(
-            instance, context=context).data
+        return RecipeEasyRetrieveSerializer(instance.recipe).data
 
-
-# Для корзины
 
 class ShoppingCartCreateSerializer(serializers.ModelSerializer):
-    user = CustomUserSerializer(read_only=True)
+    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    recipe = serializers.PrimaryKeyRelatedField(queryset=Recipe.objects.all())
 
     class Meta:
         model = ShoppingCart
-        fields = ('user',)
-
-    def create(self, validated_data):
-        recipe_id = self.context['view'].kwargs['recipe_id']
-        recipe = get_object_or_404(Recipe, id=recipe_id)
-        user = self.context.get('request').user
-        ShoppingCart.objects.get_or_create(user=user, recipe=recipe)
-
-        return recipe
-
-    def validate(self, data):
-        recipe_id = self.context['view'].kwargs['recipe_id']
-        recipe = get_object_or_404(Recipe, id=recipe_id)
-        user = self.context.get('request').user
-        if ShoppingCart.objects.filter(user=user, recipe=recipe).exists():
-            raise serializers.ValidationError(
-                'Нельзя добавить рецепт в корзину дважды'
+        fields = ('user', 'recipe')
+        validators = [
+            UniqueTogetherValidator(
+                queryset=ShoppingCart.objects.all(),
+                fields=('user', 'recipe'),
+                message='Нельзя добавить рецепт в корзину дважды'
             )
-        return data
+        ]
+
+    # def create(self, validated_data):
+    #     recipe_id = self.context['view'].kwargs['recipe_id']
+    #     recipe = get_object_or_404(Recipe, id=recipe_id)
+    #     user = self.context.get('request').user
+    #     ShoppingCart.objects.get_or_create(user=user, recipe=recipe)
+
+    #     return recipe
+
+    # def validate(self, data):
+    #     recipe_id = self.context['view'].kwargs['recipe_id']
+    #     recipe = get_object_or_404(Recipe, id=recipe_id)
+    #     user = self.context.get('request').user
+    #     if ShoppingCart.objects.filter(user=user, recipe=recipe).exists():
+    #         raise serializers.ValidationError(
+    #             'Нельзя добавить рецепт в корзину дважды'
+    #         )
+    #     return data
 
     def to_representation(self, instance):
-        request = self.context.get('request')
-        context = {'request': request}
-        return RecipeEasyRetrieveSerializer(
-            instance, context=context).data
+        return RecipeEasyRetrieveSerializer(instance.recipe).data

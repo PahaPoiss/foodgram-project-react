@@ -1,8 +1,8 @@
+from api_foodgram.pagination import CustomPagination
+from django.shortcuts import get_object_or_404
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-
-from api_foodgram.pagination import CustomPagination
 
 from .models import Follow, User
 from .serializers import FollowCreateSerializer, FollowRetrieveSerializer
@@ -16,7 +16,7 @@ class FollowCreateViewSet(viewsets.ModelViewSet):
 
     def delete(self, request, *args, **kwargs):
         author_id = self.kwargs['author_id']
-        author = User.objects.get(id=author_id)
+        author = get_object_or_404(User, id=author_id)
         user = request.user
         Follow.objects.filter(user=user, author=author).delete()
 

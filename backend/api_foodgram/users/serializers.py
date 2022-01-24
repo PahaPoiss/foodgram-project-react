@@ -1,8 +1,7 @@
 from django.utils.datastructures import MultiValueDictKeyError
 from djoser.serializers import UserCreateSerializer, UserSerializer
-from rest_framework import serializers
-
 from recipes.models import Recipe
+from rest_framework import serializers
 
 from .models import Follow, User
 
@@ -14,19 +13,19 @@ class CustomUserCreateSerializer(UserCreateSerializer):
                   'last_name', 'password')
 
     def validate(self, data):
-        if not data['first_name'] or len(data['first_name']) == 0:
+        if len(data['first_name']) == 0:
             raise serializers.ValidationError(
                 'Обязательное поле.')
-        if not data['last_name'] or len(data['last_name']) == 0:
+        if len(data['last_name']) == 0:
             raise serializers.ValidationError(
                 'Обязательное поле.')
-        if not data['username'] or len(data['username']) == 0:
+        if len(data['username']) == 0:
             raise serializers.ValidationError(
                 'Обязательное поле.')
-        if not data['email'] or len(data['email']) == 0:
+        if len(data['email']) == 0:
             raise serializers.ValidationError(
                 'Обязательное поле.')
-        if not data['password'] or len(data['password']) == 0:
+        if len(data['password']) == 0:
             raise serializers.ValidationError(
                 'Обязательное поле.')
         return data
@@ -47,8 +46,6 @@ class CustomUserSerializer(UserSerializer):
         return Follow.objects.filter(author=obj, user=user).exists()
 
 
-# Упрощённый для показа рецепта
-
 class RecipeEasyRetrieveSerializer(serializers.ModelSerializer):
 
     class Meta:
@@ -58,8 +55,6 @@ class RecipeEasyRetrieveSerializer(serializers.ModelSerializer):
             'image', 'cooking_time',
         )
 
-
-# Для показа подписок
 
 class FollowRetrieveSerializer(serializers.ModelSerializer):
     recipes = serializers.SerializerMethodField()
@@ -95,8 +90,6 @@ class FollowRetrieveSerializer(serializers.ModelSerializer):
         user = request.user
         return Follow.objects.filter(author=obj, user=user).exists()
 
-
-# Для создания подписки
 
 class FollowCreateSerializer(serializers.ModelSerializer):
     author = CustomUserSerializer(read_only=True)
