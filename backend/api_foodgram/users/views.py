@@ -1,9 +1,9 @@
-from api_foodgram.pagination import CustomPagination
 from django.shortcuts import get_object_or_404
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from api_foodgram.pagination import CustomPagination
 from .models import Follow, User
 from .serializers import FollowCreateSerializer, FollowRetrieveSerializer
 

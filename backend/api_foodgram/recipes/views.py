@@ -1,4 +1,3 @@
-from api_foodgram.pagination import CustomPagination
 from django.db.models import Sum
 from django.http import HttpResponse
 from django_filters.rest_framework import DjangoFilterBackend
@@ -7,6 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 
+from api_foodgram.pagination import CustomPagination
 from .filters import IngredientFilter, RecipeFilter
 from .mixins import AddDeleteListMixin
 from .models import (Favorite, Ingredient, Recipe, RecipeIngredient,
