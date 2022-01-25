@@ -12,16 +12,12 @@ services:
       - .env
 
   frontend:
-    build:
-      context: ../frontend
-      dockerfile: Dockerfile
+    image: 0108199666/foodgram_front:latest
     volumes:
       - ../frontend/:/app/result_build/
 
   backend:
-    build:
-      context: ../backend
-      dockerfile: Dockerfile
+    image: 0108199666/foodgram_back:latest
     volumes:
       - static_value:/app/static/
       - media_value:/app/media/
