@@ -26,7 +26,8 @@ class User(AbstractUser):
         verbose_name='Фамилия пользователя'
     )
 
-    email = models.EmailField('Почта пользователя', unique=True)
+    email = models.EmailField('Почта пользователя', unique=True,
+                              max_length=40)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username', 'first_name', 'last_name']
