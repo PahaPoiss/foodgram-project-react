@@ -1,4 +1,5 @@
 from django.db import models
+
 from users.models import User
 
 
@@ -39,18 +40,20 @@ class Recipe(models.Model):
     name = models.CharField(max_length=250,
                             verbose_name='Название рецепта')
     ingredients = models.ManyToManyField(Ingredient,
-                                         through='RecipeIngredient')
+                                         through='RecipeIngredient',
+                                         verbose_name='Ингредиенты')
 
     author = models.ForeignKey(User, on_delete=models.CASCADE,
-                               related_name='recipes')
+                               related_name='recipes',
+                               verbose_name='Автор рецепта')
 
-    tags = models.ManyToManyField(Tag)
+    tags = models.ManyToManyField(Tag, verbose_name='Тэги')
 
-    image = models.FileField()
+    image = models.FileField(verbose_name='Картинка')
 
-    text = models.TextField()
+    text = models.TextField(verbose_name='Текст рецепта')
 
-    cooking_time = models.IntegerField()
+    cooking_time = models.IntegerField(verbose_name='Время приготовления')
 
     class Meta:
         ordering = ('-id',)
@@ -63,31 +66,45 @@ class Recipe(models.Model):
 
 class Favorite(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE,
-                             related_name='favouriter')
+                             related_name='favouriter',
+                             verbose_name='Пользователь')
     recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE,
-                               related_name='favourited')
+                               related_name='favourited',
+                               verbose_name='Рецепт')
 
     class Meta:
-        unique_together = ('user', 'recipe')
+        constraints = [models.UniqueConstraint(fields=['recipe', 'user'],
+                                               name='unique_favorite')]
+        verbose_name = 'Избранное'
+        verbose_name_plural = 'Избранное'
 
 
 class ShoppingCart(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE,
-                             related_name='buyer')
+                             related_name='buyer',
+                             verbose_name='Пользователь')
     recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE,
-                               related_name='cart')
+                               related_name='cart',
+                               verbose_name='Рецепт')
 
     class Meta:
-        unique_together = ('user', 'recipe')
+        constraints = [models.UniqueConstraint(fields=['recipe', 'user'],
+                                               name='unique_cart')]
+        verbose_name = 'Корзина'
+        verbose_name_plural = 'Корзина'
 
 
 class RecipeIngredient(models.Model):
-    ingredient = models.ForeignKey(Ingredient, on_delete=models.CASCADE)
-    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE)
-    amount = models.IntegerField()
+    ingredient = models.ForeignKey(Ingredient, on_delete=models.CASCADE,
+                                   verbose_name='Ингредиент')
+    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE,
+                               verbose_name='Рецепт')
+    amount = models.IntegerField(verbose_name='Количество ингредиента')
 
     class Meta:
-        unique_together = ('recipe', 'ingredient')
+        constraints = [models.UniqueConstraint(
+            fields=['recipe', 'ingredient'],
+            name='unique_recipe_ingredient')]
 
     def __str__(self):
         return f'{self.ingredient} {self.recipe}'

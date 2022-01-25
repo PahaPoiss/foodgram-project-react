@@ -1,9 +1,9 @@
 from rest_framework import serializers
 from rest_framework.validators import UniqueTogetherValidator
+
 from users.models import User
 from users.serializers import (CustomUserSerializer,
                                RecipeEasyRetrieveSerializer)
-
 from .fields import Base64ImageField
 from .models import (Favorite, Ingredient, Recipe, RecipeIngredient,
                      ShoppingCart, Tag)
@@ -177,16 +177,6 @@ class FavoriteCreateSerializer(serializers.ModelSerializer):
             )
         ]
 
-    # def validate(self, data):
-    #     print(data['recipe'])
-    #     recipe = get_object_or_404(Recipe, id=data.recipe_id)
-    #     user = self.context.get('request').user
-    #     if Favorite.objects.filter(user=user, recipe=recipe).exists():
-    #         raise serializers.ValidationError(
-    #             'Нельзя добавить рецепт в избранное дважды'
-    #         )
-    #     return data
-
     def to_representation(self, instance):
         return RecipeEasyRetrieveSerializer(instance.recipe).data
 
@@ -205,24 +195,6 @@ class ShoppingCartCreateSerializer(serializers.ModelSerializer):
                 message='Нельзя добавить рецепт в корзину дважды'
             )
         ]
-
-    # def create(self, validated_data):
-    #     recipe_id = self.context['view'].kwargs['recipe_id']
-    #     recipe = get_object_or_404(Recipe, id=recipe_id)
-    #     user = self.context.get('request').user
-    #     ShoppingCart.objects.get_or_create(user=user, recipe=recipe)
-
-    #     return recipe
-
-    # def validate(self, data):
-    #     recipe_id = self.context['view'].kwargs['recipe_id']
-    #     recipe = get_object_or_404(Recipe, id=recipe_id)
-    #     user = self.context.get('request').user
-    #     if ShoppingCart.objects.filter(user=user, recipe=recipe).exists():
-    #         raise serializers.ValidationError(
-    #             'Нельзя добавить рецепт в корзину дважды'
-    #         )
-    #     return data
 
     def to_representation(self, instance):
         return RecipeEasyRetrieveSerializer(instance.recipe).data
